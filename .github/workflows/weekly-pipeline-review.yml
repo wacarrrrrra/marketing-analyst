@@ -36,9 +36,13 @@ jobs:
         run: |
           mkdir -p reports
           REPORT_DATE=$(date -u +%Y-%m-%d)
-          cat <<'EOF' > reports/weekly-pipeline-review-${REPORT_DATE}.md
+          cat <<EOF > reports/weekly-pipeline-review-${REPORT_DATE}.md
           ${{ steps.claude.outputs.result }}
           EOF
+
+      - name: Add report to workflow summary
+        run: |
+          cat reports/weekly-pipeline-review-*.md >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload report artifact
         uses: actions/upload-artifact@v4
