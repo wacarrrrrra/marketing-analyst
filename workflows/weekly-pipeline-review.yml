@@ -1,0 +1,47 @@
+name: Weekly Pipeline Review
+
+on:
+  schedule:
+    # Mondays at 3:00 PM UTC = 8:00 AM PT during standard time
+    - cron: "0 15 * * 1"
+  workflow_dispatch:
+
+concurrency:
+  group: weekly-pipeline-review
+  cancel-in-progress: true
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Prepare prompt
+        run: |
+          mkdir -p build
+          sed "s|{{DASHBOARD_URL}}|${{ secrets.HUBSPOT_DASHBOARD_URL }}|g" \
+            prompts/weekly_pipeline_review.md > build/prompt.md
+
+      - name: Run Claude analysis
+        id: claude
+        uses: anthropics/claude-code-action@v1
+        with:
+          prompt: |
+            Read build/prompt.md and produce only the final Slack-ready weekly pipeline review.
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+
+      - name: Save report to file
+        run: |
+          mkdir -p reports
+          REPORT_DATE=$(date -u +%Y-%m-%d)
+          cat <<'EOF' > reports/weekly-pipeline-review-${REPORT_DATE}.md
+          ${{ steps.claude.outputs.result }}
+          EOF
+
+      - name: Upload report artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: weekly-pipeline-review
+          path: reports/weekly-pipeline-review-*.md
